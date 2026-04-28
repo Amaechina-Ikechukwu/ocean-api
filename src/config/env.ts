@@ -3,6 +3,7 @@ import { z } from "zod";
 const envSchema = z.object({
   FIREBASE_SERVICE_ACCOUNT_PATH: z.string().min(1).optional(),
   FIREBASE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+  FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().min(1).optional(),
   FIREBASE_STORAGE_BUCKET: z.string().min(1).optional(),
   FIREBASE_REALTIME_DATABASE_URL: z.string().url().optional(),
   CLIENT_URL: z.string().url(),
@@ -16,11 +17,11 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300)
 }).superRefine((value, ctx) => {
-  if (value.FIREBASE_SERVICE_ACCOUNT_JSON || value.FIREBASE_SERVICE_ACCOUNT_PATH) return;
+  if (value.FIREBASE_SERVICE_ACCOUNT_JSON || value.FIREBASE_SERVICE_ACCOUNT_BASE64 || value.FIREBASE_SERVICE_ACCOUNT_PATH) return;
 
   ctx.addIssue({
     code: z.ZodIssueCode.custom,
-    message: "Set FIREBASE_SERVICE_ACCOUNT_JSON for Cloud Run or FIREBASE_SERVICE_ACCOUNT_PATH for local development",
+    message: "Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 for Cloud Run, or FIREBASE_SERVICE_ACCOUNT_PATH for local development",
     path: ["FIREBASE_SERVICE_ACCOUNT_JSON"]
   });
 });

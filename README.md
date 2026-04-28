@@ -28,7 +28,13 @@ Use `FIREBASE_SERVICE_ACCOUNT_PATH` for local development:
 FIREBASE_SERVICE_ACCOUNT_PATH=C:\path\to\serviceAccountKey.json
 ```
 
-Use `FIREBASE_SERVICE_ACCOUNT_JSON` in Cloud Run, preferably mounted from Secret Manager:
+Use `FIREBASE_SERVICE_ACCOUNT_BASE64` in Cloud Run, preferably mounted from Secret Manager. This avoids JSON quoting and newline issues:
+
+```env
+FIREBASE_SERVICE_ACCOUNT_BASE64=base64-encoded-service-account-json
+```
+
+Raw JSON is also supported if your deploy pipeline preserves it exactly:
 
 ```env
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
