@@ -1,0 +1,11 @@
+.git
+.env
+service.json
+node_modules
+dist
+coverage
+*.log
+npm-debug.log*
+README.md
+backend-spec.md
+ai-frontend-integration.md
