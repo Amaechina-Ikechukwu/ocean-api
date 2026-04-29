@@ -35,6 +35,9 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+// Compatibility for clients that accidentally combine an API base URL ending
+// in /api with route paths that also start with /api.
+app.use("/api/api", routes);
 app.use("/api", routes);
 app.use("/ocean-logs", logsRouter);
 app.use(errorMiddleware);
