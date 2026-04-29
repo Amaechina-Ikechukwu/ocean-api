@@ -1,5 +1,4 @@
 import admin from "firebase-admin";
-import { readFileSync } from "node:fs";
 import { env } from "./env";
 
 function parseServiceAccount(raw: string): admin.ServiceAccount {
@@ -13,15 +12,7 @@ function parseServiceAccount(raw: string): admin.ServiceAccount {
 }
 
 function getCredential() {
-  if (env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-    return admin.credential.cert(parseServiceAccount(Buffer.from(env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8")));
-  }
-
-  if (env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    return admin.credential.cert(parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT_JSON));
-  }
-
-  return admin.credential.cert(parseServiceAccount(readFileSync(env.FIREBASE_SERVICE_ACCOUNT_PATH!, "utf8")));
+  return admin.credential.cert(parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT_JSON));
 }
 
 if (!admin.apps.length) {

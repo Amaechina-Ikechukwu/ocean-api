@@ -22,19 +22,7 @@ bun run typecheck
 
 ## Firebase Credentials
 
-Use `FIREBASE_SERVICE_ACCOUNT_PATH` for local development:
-
-```env
-FIREBASE_SERVICE_ACCOUNT_PATH=C:\path\to\serviceAccountKey.json
-```
-
-Use `FIREBASE_SERVICE_ACCOUNT_BASE64` in Cloud Run, preferably mounted from Secret Manager. This avoids JSON quoting and newline issues:
-
-```env
-FIREBASE_SERVICE_ACCOUNT_BASE64=base64-encoded-service-account-json
-```
-
-Raw JSON is also supported if your deploy pipeline preserves it exactly:
+Use `FIREBASE_SERVICE_ACCOUNT_JSON` in Cloud Run, preferably mounted from Secret Manager:
 
 ```env
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
