@@ -33,3 +33,21 @@ For local `.env`, the value must be one line. Do not paste pretty-printed JSON a
 ```env
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"..."}
 ```
+
+## Logs
+
+The API uses Winston for structured Cloud Run-friendly logs. Set these optional env vars:
+
+```env
+LOG_LEVEL=info
+LOG_BUFFER_SIZE=500
+LOG_VIEWER_TOKEN=change-this-long-random-token
+```
+
+When `LOG_VIEWER_TOKEN` is set, open:
+
+```txt
+/logs?token=change-this-long-random-token
+```
+
+The log viewer shows recent in-memory logs and supports search, level filtering, sort order, and result limits.

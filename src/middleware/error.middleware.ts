@@ -1,9 +1,24 @@
 import type { ErrorRequestHandler } from "express";
 import { ZodError } from "zod";
 import { isProduction } from "../config/env";
+import { logger } from "../services/logger.service";
 import { HttpError } from "../utils/http-error";
 
-export const errorMiddleware: ErrorRequestHandler = (error, _req, res, _next) => {
+export const errorMiddleware: ErrorRequestHandler = (error, req, res, _next) => {
+  logger.error("request failed", {
+    meta: {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl,
+      uid: req.user?.uid,
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: isProduction ? undefined : error.stack
+      } : error
+    }
+  });
+
   if (error instanceof ZodError) {
     res.status(400).json({
       error: {

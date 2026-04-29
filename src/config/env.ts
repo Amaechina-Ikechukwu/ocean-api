@@ -13,7 +13,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300)
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  LOG_LEVEL: z.enum(["error", "warn", "info", "http", "debug"]).default("info"),
+  LOG_BUFFER_SIZE: z.coerce.number().int().positive().max(5000).default(500),
+  LOG_VIEWER_TOKEN: z.string().min(24).optional()
 });
 
 export const env = envSchema.parse(process.env);
