@@ -47,7 +47,7 @@ LOG_VIEWER_TOKEN=change-this-long-random-token
 When `LOG_VIEWER_TOKEN` is set, open:
 
 ```txt
-/logs?token=change-this-long-random-token
+/ocean-logs?token=change-this-long-random-token
 ```
 
 The log viewer shows recent in-memory logs and supports search, level filtering, sort order, and result limits.

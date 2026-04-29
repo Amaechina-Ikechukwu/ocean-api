@@ -36,5 +36,5 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api", routes);
-app.use("/logs", logsRouter);
+app.use("/ocean-logs", logsRouter);
 app.use(errorMiddleware);

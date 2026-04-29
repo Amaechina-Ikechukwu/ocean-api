@@ -73,7 +73,7 @@ logsRouter.get("/", (_req, res) => {
     async function loadLogs() {
       const params = new URLSearchParams(new FormData(form));
       params.set("token", token);
-      const res = await fetch("/logs/data?" + params.toString());
+      const res = await fetch("/ocean-logs/data?" + params.toString());
       const json = await res.json();
       rows.innerHTML = json.data.map((entry) => \`
         <tr>
