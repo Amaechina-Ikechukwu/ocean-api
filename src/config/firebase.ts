@@ -18,10 +18,23 @@ function parseServiceAccount(raw: string): admin.ServiceAccount {
   const trimmed = raw.trim();
   let serviceAccount: admin.ServiceAccount & { private_key?: string };
 
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT_JSON must be the complete service account JSON on one line. " +
+      "Your value appears truncated; .env files cannot use an unquoted multiline JSON object."
+    );
+  }
+
   try {
     serviceAccount = JSON.parse(trimmed) as admin.ServiceAccount & { private_key?: string };
   } catch (error) {
-    serviceAccount = JSON.parse(repairLiteralPrivateKeyNewlines(trimmed)) as admin.ServiceAccount & { private_key?: string };
+    try {
+      serviceAccount = JSON.parse(repairLiteralPrivateKeyNewlines(trimmed)) as admin.ServiceAccount & { private_key?: string };
+    } catch {
+      throw new Error(
+        "FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. Use a single-line JSON string and keep private_key newlines escaped as \\n."
+      );
+    }
   }
 
   if (serviceAccount.private_key) {

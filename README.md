@@ -27,3 +27,9 @@ Use `FIREBASE_SERVICE_ACCOUNT_JSON` in Cloud Run, preferably mounted from Secret
 ```env
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 ```
+
+For local `.env`, the value must be one line. Do not paste pretty-printed JSON across multiple lines:
+
+```env
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"..."}
+```
