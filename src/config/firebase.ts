@@ -1,8 +1,28 @@
 import admin from "firebase-admin";
 import { env } from "./env";
 
+function repairLiteralPrivateKeyNewlines(raw: string): string {
+  return raw.replace(
+    /"private_key"\s*:\s*"([\s\S]*?)"\s*,\s*"client_email"/,
+    (_match, privateKey: string) => {
+      const repairedKey = privateKey
+        .replace(/\r?\n/g, "\\n")
+        .replace(/(?<!\\)"/g, '\\"');
+
+      return `"private_key":"${repairedKey}","client_email"`;
+    }
+  );
+}
+
 function parseServiceAccount(raw: string): admin.ServiceAccount {
-  const serviceAccount = JSON.parse(raw) as admin.ServiceAccount & { private_key?: string };
+  const trimmed = raw.trim();
+  let serviceAccount: admin.ServiceAccount & { private_key?: string };
+
+  try {
+    serviceAccount = JSON.parse(trimmed) as admin.ServiceAccount & { private_key?: string };
+  } catch (error) {
+    serviceAccount = JSON.parse(repairLiteralPrivateKeyNewlines(trimmed)) as admin.ServiceAccount & { private_key?: string };
+  }
 
   if (serviceAccount.private_key) {
     serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
