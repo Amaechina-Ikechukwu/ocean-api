@@ -10,6 +10,19 @@ import { searchEmbeddings, vectorizeBlock, vectorizePage } from "../services/vec
 
 export const aiRouter = Router();
 
+function writeSse(res: import("express").Response, event: string, data: Record<string, unknown>) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function extractUsage(usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined) {
+  return usage ? {
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens
+  } : undefined;
+}
+
 aiRouter.use(authMiddleware);
 
 aiRouter.post("/chat", validate({ body: aiChatSchema }), asyncHandler(async (req, res) => {
@@ -22,24 +35,50 @@ aiRouter.post("/chat/stream", validate({ body: aiChatSchema }), asyncHandler(asy
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive"
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no"
   });
 
   const reader = upstream.body?.getReader();
   if (!reader) {
-    res.write("event: error\ndata: {\"type\":\"error\",\"message\":\"AI stream unavailable\"}\n\n");
+    writeSse(res, "error", { type: "error", message: "AI stream unavailable" });
     res.end();
     return;
   }
 
   const decoder = new TextDecoder();
+  let buffer = "";
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    res.write(decoder.decode(value, { stream: true }));
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+
+      const payload = trimmed.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+        };
+        const text = parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.message?.content;
+        if (text) writeSse(res, "delta", { type: "delta", text });
+
+        const usage = extractUsage(parsed.usage);
+        if (usage) writeSse(res, "usage", { type: "usage", usage });
+      } catch {
+        writeSse(res, "error", { type: "error", message: "AI stream parse error" });
+      }
+    }
   }
 
-  res.write("event: done\ndata: {\"type\":\"done\"}\n\n");
+  writeSse(res, "done", { type: "done" });
   res.end();
 }));
 

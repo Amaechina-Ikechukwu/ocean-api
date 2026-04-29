@@ -44,6 +44,14 @@ type NvidiaChatResponse = {
   };
 };
 
+function normalizeUsage(usage: NvidiaChatResponse["usage"]) {
+  return usage ? {
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens
+  } : undefined;
+}
+
 function assertAiConfigured() {
   if (!env.NVIDIA_API_KEY) {
     throw new HttpError(503, "AI provider is not configured");
@@ -154,11 +162,7 @@ export async function chatWithAi(uid: string, input: ChatInput) {
 
   return {
     message: { role: "assistant", content },
-    usage: result.usage ? {
-      inputTokens: result.usage.prompt_tokens,
-      outputTokens: result.usage.completion_tokens,
-      totalTokens: result.usage.total_tokens
-    } : undefined
+    usage: normalizeUsage(result.usage)
   };
 }
 
@@ -180,7 +184,7 @@ export async function summarizePage(uid: string, pageId: string, input: { worksp
     { role: "user", content: prompt }
   ], false);
 
-  return { summary: result.choices?.[0]?.message?.content ?? "", usage: result.usage };
+  return { summary: result.choices?.[0]?.message?.content ?? "", usage: normalizeUsage(result.usage) };
 }
 
 export async function rewriteSelection(uid: string, pageId: string, input: RewriteInput) {
@@ -199,7 +203,7 @@ export async function rewriteSelection(uid: string, pageId: string, input: Rewri
     }
   ], false);
 
-  return { text: result.choices?.[0]?.message?.content ?? "", usage: result.usage };
+  return { text: result.choices?.[0]?.message?.content ?? "", usage: normalizeUsage(result.usage) };
 }
 
 export async function generatePageContent(uid: string, pageId: string, input: GenerateInput) {
@@ -224,6 +228,6 @@ export async function generatePageContent(uid: string, pageId: string, input: Ge
   return {
     previewText,
     blocks: [{ type: "paragraph", content: { text: previewText } }],
-    usage: result.usage
+    usage: normalizeUsage(result.usage)
   };
 }

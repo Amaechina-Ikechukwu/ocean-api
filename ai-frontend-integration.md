@@ -1,107 +1,96 @@
-# AI Frontend Integration Guide
+# Ocean API AI Frontend Integration
 
-This document describes the AI API contract for the Notion-like workspace frontend. It is written so a frontend AI agent can integrate the assistant experience without guessing backend behavior or bypassing workspace security.
+This is the canonical frontend contract for the AI endpoints. Use this file as the source of truth.
 
-## Current Status
+## Base URL
 
-The backend AI routes are implemented against NVIDIA NIM chat completions using:
+Do not put `/api` in both the base URL and the route path.
 
-```text
-google/gemma-4-31b-it
+Use one of these patterns:
+
+```ts
+const API_ORIGIN = "https://ocean-api-269299350620.europe-west1.run.app";
+await apiFetch("/api/ai/chat", options);
 ```
 
-Required backend environment variable:
+or:
 
-```env
-NVIDIA_API_KEY=
+```ts
+const API_BASE = "https://ocean-api-269299350620.europe-west1.run.app/api";
+await apiFetch("/ai/chat", options);
 ```
 
-Optional backend overrides:
+Recommended helper:
 
-```env
-NVIDIA_AI_MODEL=google/gemma-4-31b-it
-NVIDIA_AI_BASE_URL=https://integrate.api.nvidia.com/v1/chat/completions
+```ts
+export function joinApiUrl(baseUrl: string, path: string) {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
 ```
 
-Do not expose `NVIDIA_API_KEY` in the frontend. All provider calls must go through the backend.
+Bad:
 
-## Security Model
+```txt
+https://...run.app/api + /api/ai/chat = /api/api/ai/chat
+```
 
-All AI endpoints must require Firebase Auth.
+The backend currently accepts `/api/api/...` as a temporary compatibility fallback, but the frontend should not rely on it.
 
-Frontend requests must send:
+## Auth
+
+Every AI request requires a Firebase ID token:
 
 ```http
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
 ```
 
-The backend must verify:
+The backend verifies the token with Firebase Admin, then checks Firestore workspace membership and role permissions.
 
-1. The Firebase token is valid and not revoked.
-2. The user is a member of the target workspace.
-3. The user has permission to read every page/block/database record included in AI context.
-4. Any AI action that mutates data requires the same role as the equivalent non-AI endpoint.
+## Error Shape
 
-The frontend must never send raw Firestore credentials, service account credentials, or unfiltered workspace dumps to an AI provider.
+All handled API errors return JSON:
 
-## Recommended Routes
-
-Mount all AI routes under:
-
-```http
-/api/ai
+```ts
+type ApiErrorResponse = {
+  error: {
+    message: string;
+    details?: unknown;
+  };
+};
 ```
 
-Implemented endpoints:
+Frontend error helper:
 
-```http
-POST /api/ai/chat
-POST /api/ai/chat/stream
-POST /api/ai/pages/:pageId/summarize
-POST /api/ai/pages/:pageId/generate
-POST /api/ai/pages/:pageId/rewrite
-POST /api/ai/pages/:pageId/vectorize
-POST /api/ai/pages/:pageId/blocks/:blockId/vectorize
-POST /api/ai/embeddings/search
+```ts
+async function readApiError(res: Response) {
+  const json = await res.json().catch(() => null);
+  return json?.error?.message ?? `Request failed with ${res.status}`;
+}
 ```
 
-Planned endpoint:
+Common statuses:
 
-```http
-POST /api/ai/pages/:pageId/action
+```txt
+400 validation failed
+401 missing or invalid Firebase token
+403 user is not allowed to access the workspace/page
+404 route, workspace, page, or block not found
+429 rate limited
+502 AI provider failed
+503 AI or embeddings provider is not configured
 ```
 
-## Common Types
+## Shared Types
 
-### AI Message
+The frontend may send only `user` and previous `assistant` messages. Do not send `system`; the backend creates system prompts.
 
 ```ts
 type AiMessage = {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
 };
-```
 
-The frontend should only send `user` and prior `assistant` messages. Backend-owned system prompts should be created server-side.
-
-### AI Context
-
-```ts
-type AiContext = {
-  workspaceId: string;
-  pageId?: string;
-  blockIds?: string[];
-  databaseId?: string;
-  selectedText?: string;
-};
-```
-
-The frontend may send IDs and user-selected text. The backend should fetch canonical page, block, and database context after permission checks.
-
-### AI Usage
-
-```ts
 type AiUsage = {
   inputTokens?: number;
   outputTokens?: number;
@@ -109,9 +98,44 @@ type AiUsage = {
 };
 ```
 
-## Chat
+## Client Helper
 
-Use this for a normal workspace assistant conversation.
+```ts
+type ApiClientOptions = {
+  baseUrl: string;
+  getIdToken: () => Promise<string>;
+};
+
+export function createOceanApiClient({ baseUrl, getIdToken }: ApiClientOptions) {
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const token = await getIdToken();
+    const res = await fetch(joinApiUrl(baseUrl, path), {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...init.headers
+      }
+    });
+
+    if (!res.ok) throw new Error(await readApiError(res));
+    return await res.json() as T;
+  }
+
+  return { request };
+}
+```
+
+Use it like this:
+
+```ts
+const api = createOceanApiClient({
+  baseUrl: "https://ocean-api-269299350620.europe-west1.run.app",
+  getIdToken: () => firebaseAuth.currentUser!.getIdToken()
+});
+```
+
+## Chat
 
 ```http
 POST /api/ai/chat
@@ -134,7 +158,10 @@ Response:
 ```ts
 type AiChatResponse = {
   data: {
-    message: AiMessage;
+    message: {
+      role: "assistant";
+      content: string;
+    };
     usage?: AiUsage;
   };
 };
@@ -143,42 +170,28 @@ type AiChatResponse = {
 Example:
 
 ```ts
-await fetch("/api/ai/chat", {
+const result = await api.request<AiChatResponse>("/api/ai/chat", {
   method: "POST",
-  headers: {
-    Authorization: `Bearer ${idToken}`,
-    "Content-Type": "application/json"
-  },
   body: JSON.stringify({
     workspaceId,
     pageId,
     mode: "ask",
-    messages: [
-      { role: "user", content: "Summarize the current project risks." }
-    ]
+    messages: [{ role: "user", content: "Summarize this page." }]
   })
 });
 ```
 
-## Streaming Chat
+Permission: workspace `viewer` or higher.
 
-Use this for the best assistant UX.
+## Streaming Chat
 
 ```http
 POST /api/ai/chat/stream
 ```
 
-Request shape is the same as `/api/ai/chat`.
+Request: same body as `POST /api/ai/chat`.
 
-The backend returns a Server-Sent Events response:
-
-```http
-Content-Type: text/event-stream
-Cache-Control: no-cache
-Connection: keep-alive
-```
-
-The stream currently forwards NVIDIA stream chunks and appends a final backend `done` event. Frontend code should parse OpenAI-compatible `data:` chunks and also tolerate this backend event:
+Response is Server-Sent Events. The backend normalizes provider chunks into these events:
 
 ```ts
 type AiStreamEvent =
@@ -188,24 +201,60 @@ type AiStreamEvent =
   | { type: "error"; message: string };
 ```
 
-SSE payload format:
+Fetch streaming helper:
 
-```text
-event: delta
-data: {"type":"delta","text":"Hello"}
+```ts
+export async function streamAiChat(
+  baseUrl: string,
+  token: string,
+  body: AiChatRequest,
+  onEvent: (event: AiStreamEvent) => void,
+  signal?: AbortSignal
+) {
+  const res = await fetch(joinApiUrl(baseUrl, "/api/ai/chat/stream"), {
+    method: "POST",
+    signal,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
 
-event: done
-data: {"type":"done"}
+  if (!res.ok) throw new Error(await readApiError(res));
+  if (!res.body) throw new Error("Streaming is not supported in this browser");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const dataLine = chunk.split("\n").find((line) => line.startsWith("data:"));
+      if (!dataLine) continue;
+      onEvent(JSON.parse(dataLine.slice(5).trim()) as AiStreamEvent);
+    }
+  }
+}
 ```
 
 Frontend behavior:
 
-- Append `delta.text` to the assistant message as it arrives.
-- Stop loading when `done` arrives.
-- Show a recoverable error state when `error` arrives.
-- Abort the request with `AbortController` when the user presses stop or navigates away.
+- Append every `delta.text` to the current assistant message.
+- Stop loading on `done`.
+- Use `AbortController` for a stop button and page navigation.
+- Show `error.message` if an `error` event arrives.
 
-## Page Summarization
+Permission: workspace `viewer` or higher.
+
+## Summarize Page
 
 ```http
 POST /api/ai/pages/:pageId/summarize
@@ -226,17 +275,14 @@ Response:
 type SummarizePageResponse = {
   data: {
     summary: string;
-    actionItems?: string[];
     usage?: AiUsage;
   };
 };
 ```
 
-Permission required: workspace `viewer` or higher.
+Permission: workspace `viewer` or higher.
 
-## Page Generation
-
-Use this when the user asks AI to create new page content.
+## Generate Page Content
 
 ```http
 POST /api/ai/pages/:pageId/generate
@@ -259,23 +305,21 @@ Response:
 ```ts
 type GeneratePageContentResponse = {
   data: {
+    previewText: string;
     blocks: Array<{
       type: string;
       content: Record<string, unknown>;
     }>;
-    previewText: string;
     usage?: AiUsage;
   };
 };
 ```
 
-Permission required: workspace `editor`, `admin`, or `owner`.
+The backend returns generated content for preview. The frontend should only write blocks after the user confirms.
 
-Important: the backend returns generated blocks for preview first. The frontend should ask the user to accept before writing blocks unless the product explicitly enables one-click insertion.
+Permission: workspace `editor`, `admin`, or `owner`.
 
 ## Rewrite Selection
-
-Use this for inline editor commands like improve writing, shorten, expand, fix grammar, or change tone.
 
 ```http
 POST /api/ai/pages/:pageId/rewrite
@@ -310,185 +354,41 @@ type RewriteResponse = {
 };
 ```
 
-Permission required: workspace `editor`, `admin`, or `owner`.
+Permission: workspace `editor`, `admin`, or `owner`.
 
-## AI Actions
+## Vectorize Block
 
-Use this for structured operations the assistant can propose or execute, such as creating a page, appending blocks, renaming a page, or creating tasks.
+Use this after a block content update. Debounce it; do not block editing on it.
 
 ```http
-POST /api/ai/pages/:pageId/action
+POST /api/ai/pages/:pageId/blocks/:blockId/vectorize
 ```
 
 Request:
 
 ```ts
-type AiActionRequest = {
-  workspaceId: string;
-  prompt: string;
-  dryRun?: boolean;
-  allowedActions: AiAllowedAction[];
+type VectorizeBlockRequest = {
+  workspaceId?: string;
 };
-
-type AiAllowedAction =
-  | "create_page"
-  | "update_page_title"
-  | "append_blocks"
-  | "replace_blocks"
-  | "create_comments";
 ```
+
+`workspaceId` is optional because the backend can derive it from the page.
 
 Response:
 
 ```ts
-type AiActionResponse = {
-  data: {
-    dryRun: boolean;
-    proposedActions: Array<{
-      type: AiAllowedAction;
-      description: string;
-      payload: Record<string, unknown>;
-    }>;
-    appliedActions?: Array<{
-      type: AiAllowedAction;
-      resourceId?: string;
-    }>;
-  };
+type VectorizeBlockResponse = {
+  data:
+    | { indexed: true; embeddingId: string; dimensions: number }
+    | { indexed: false; reason: "empty_text" };
 };
 ```
 
-Frontend recommendation:
+Permission: workspace `editor`, `admin`, or `owner`.
 
-- Default to `dryRun: true`.
-- Render proposed actions in a confirmation UI.
-- Submit a second request with explicit user confirmation before applying mutations.
+## Vectorize Page
 
-## Error Shape
-
-All AI endpoints should use the same backend error shape:
-
-```ts
-type ApiErrorResponse = {
-  error: {
-    message: string;
-    details?: unknown;
-  };
-};
-```
-
-Expected statuses:
-
-```http
-400 Validation failed
-401 Authentication required
-403 Insufficient permissions
-404 Page or workspace not found
-413 Request too large
-429 Rate limit exceeded
-500 AI provider or server error
-```
-
-Frontend should show user-friendly messages and avoid exposing raw provider errors.
-
-## Frontend State Model
-
-Recommended local state:
-
-```ts
-type AiPanelState = {
-  isOpen: boolean;
-  isLoading: boolean;
-  isStreaming: boolean;
-  messages: AiMessage[];
-  error: string | null;
-  activeRequestId: string | null;
-};
-```
-
-Recommended editor integration state:
-
-```ts
-type AiEditorState = {
-  selectedText: string;
-  selectedBlockIds: string[];
-  pendingPreview:
-    | { type: "text"; text: string }
-    | { type: "blocks"; blocks: Array<{ type: string; content: Record<string, unknown> }> }
-    | null;
-};
-```
-
-## UX Integration Points
-
-Recommended frontend entry points:
-
-- Page-level assistant button.
-- Inline selection menu for rewrite commands.
-- Slash command: `/ai`.
-- Empty page prompt: “Ask AI to draft”.
-- Block toolbar action: “Ask AI”.
-
-Do not auto-send private page content to AI just because the panel opens. Send context only after the user submits an AI request.
-
-## Privacy Requirements
-
-The frontend should:
-
-- Send the smallest useful context.
-- Prefer IDs over full content when the backend can fetch content securely.
-- Clearly indicate when selected text will be sent to AI.
-- Avoid sending hidden pages, deleted pages, unresolved private comments, or unrelated workspace content.
-- Abort in-flight streams when the user closes the panel or changes page.
-
-The backend should:
-
-- Fetch context server-side after permission checks.
-- Redact secrets where possible before provider calls.
-- Log request metadata, not full prompts or page contents.
-- Apply separate rate limits to AI endpoints.
-- Store AI conversation history only if the product intentionally supports it.
-
-## Vectorization
-
-The backend uses Gemini embeddings through `@google/genai`.
-
-Required backend environment variable:
-
-```env
-GEMINI_API_KEY=
-```
-
-Optional backend override:
-
-```env
-GEMINI_EMBEDDING_MODEL=gemini-embedding-2
-```
-
-Firestore stores vectors in a backend-owned top-level collection:
-
-```ts
-type EmbeddingDocument = {
-  workspaceId: string;
-  pageId: string;
-  blockId: string;
-  blockType: string;
-  text: string;
-  embedding: VectorValue;
-  embeddingModel: string;
-  embeddingDimensions: number;
-  updatedAt: Timestamp;
-};
-```
-
-The document ID is:
-
-```txt
-{pageId}_{blockId}
-```
-
-Direct client writes to `embeddings/{embeddingId}` are denied by Firestore rules. The frontend should call the backend.
-
-### Vectorize Page
+Use this after page import, duplication, or bulk creation.
 
 ```http
 POST /api/ai/pages/:pageId/vectorize
@@ -519,35 +419,9 @@ type VectorizePageResponse = {
 };
 ```
 
-Permission required: workspace `editor`, `admin`, or `owner`.
+Permission: workspace `editor`, `admin`, or `owner`.
 
-### Vectorize Block
-
-```http
-POST /api/ai/pages/:pageId/blocks/:blockId/vectorize
-```
-
-Request:
-
-```ts
-type VectorizeBlockRequest = {
-  workspaceId?: string;
-};
-```
-
-Response:
-
-```ts
-type VectorizeBlockResponse = {
-  data:
-    | { indexed: true; embeddingId: string; dimensions: number }
-    | { indexed: false; reason: "empty_text" };
-};
-```
-
-Permission required: workspace `editor`, `admin`, or `owner`.
-
-### Vector Search
+## Vector Search
 
 ```http
 POST /api/ai/embeddings/search
@@ -579,94 +453,45 @@ type VectorSearchResponse = {
 };
 ```
 
-Permission required: workspace `viewer` or higher.
+Permission: workspace `viewer` or higher.
 
-### Frontend Usage
+Firestore deployment note: vector search requires a Firestore vector index on `embeddings.embedding`, with `workspaceId` as a filter field.
 
-Recommended indexing behavior:
+## Recommended Frontend Flows
 
-- After a block content update is saved, debounce a call to vectorize that block.
-- After importing or creating a full page, call the page vectorization endpoint.
-- Do not block the editor UI on vectorization; treat it as background indexing.
-- If vectorization returns `503`, keep the app usable and mark AI search as unavailable.
+### Chat Panel
 
-Recommended search behavior:
+1. User opens the AI panel.
+2. Do not send content yet.
+3. User submits a prompt.
+4. Send `workspaceId`, optional `pageId`, and message history.
+5. Use `/chat/stream` for the live typing experience.
 
-```ts
-const res = await fetch("/api/ai/embeddings/search", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${idToken}`,
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    workspaceId,
-    query: "What did we decide about onboarding?",
-    limit: 8
-  })
-});
+### Inline Rewrite
+
+1. User selects text.
+2. User chooses a rewrite command.
+3. Call `/pages/:pageId/rewrite`.
+4. Show a diff or preview.
+5. Replace text only after user confirmation.
+
+### Background Vectorization
+
+1. A block is saved.
+2. Wait 1-3 seconds after the last edit.
+3. Call `/pages/:pageId/blocks/:blockId/vectorize`.
+4. Ignore `503` in the editor UI; show AI search unavailable elsewhere.
+
+## Provider Configuration
+
+Backend-only env vars:
+
+```env
+NVIDIA_API_KEY=
+NVIDIA_AI_MODEL=google/gemma-4-31b-it
+NVIDIA_AI_BASE_URL=https://integrate.api.nvidia.com/v1/chat/completions
+GEMINI_API_KEY=
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2
 ```
 
-### Firestore Vector Index
-
-Firestore vector search requires a vector index on:
-
-```txt
-collection: embeddings
-field: embedding
-filter field: workspaceId
-distance: COSINE
-```
-
-Create this during deployment before relying on `/api/ai/embeddings/search`.
-
-## Backend Implementation Notes
-
-Implemented:
-
-1. `src/routes/ai.routes.ts`
-2. `src/validators/ai.validators.ts`
-3. `src/services/ai.service.ts`
-4. NVIDIA/Gemma provider call through backend `fetch`
-5. Page/block context loading with workspace permission checks
-6. `/api/ai/chat`
-7. `/api/ai/chat/stream`
-8. Page summarize, generate, and rewrite
-9. Gemini embedding generation
-10. Firestore vector storage and search endpoints
-
-Still recommended:
-
-1. Add AI-specific rate limits lower than normal API limits.
-2. Add audit logs without storing raw prompts by default.
-3. Add structured dry-run actions.
-4. Convert generated Markdown into real Notion-like blocks.
-5. Add provider retries with short timeouts.
-6. Add background queue jobs for automatic vectorization.
-
-## Minimum Frontend Mock Contract
-
-Until the backend is implemented, the frontend can code against this interface:
-
-```ts
-export async function askAi(input: AiChatRequest): Promise<string> {
-  const res = await fetch("/api/ai/chat", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${await getFirebaseIdToken()}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(input)
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => null);
-    throw new Error(error?.error?.message ?? "AI request failed");
-  }
-
-  const json = await res.json() as AiChatResponse;
-  return json.data.message.content;
-}
-```
-
-The frontend should treat `503` as “AI is not configured yet” and keep the UI disabled or show an availability message.
+Never expose these in frontend code.

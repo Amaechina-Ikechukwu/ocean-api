@@ -39,5 +39,12 @@ app.get("/health", (_req, res) => {
 // in /api with route paths that also start with /api.
 app.use("/api/api", routes);
 app.use("/api", routes);
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    error: {
+      message: `Route not found: ${req.method} ${req.originalUrl}`
+    }
+  });
+});
 app.use("/ocean-logs", logsRouter);
 app.use(errorMiddleware);
