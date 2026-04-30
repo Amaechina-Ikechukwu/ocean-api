@@ -156,6 +156,35 @@ export async function listChildPages(pageId: string, uid: string) {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function listWorkspacePages(workspaceId: string, uid: string) {
+  await assertWorkspaceView(workspaceId, uid);
+  const snapshot = await firestore.collection("pages")
+    .where("workspaceId", "==", workspaceId)
+    .where("isDeleted", "==", false)
+    .orderBy("order", "asc")
+    .get();
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getPageTree(workspaceId: string, uid: string) {
+  const pages = await listWorkspacePages(workspaceId, uid);
+
+  type PageNode = (typeof pages)[number] & { children: PageNode[] };
+  const map = new Map<string, PageNode>();
+  for (const p of pages) map.set(p.id, { ...p, children: [] });
+
+  const roots: PageNode[] = [];
+  for (const node of map.values()) {
+    const parentId = node.parentPageId as string | null;
+    if (parentId && map.has(parentId)) {
+      map.get(parentId)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
 export async function movePage(pageId: string, uid: string, input: { parentPageId: string | null; order?: number }) {
   const page = await getPageForUser(pageId, uid);
   await assertWorkspaceEdit(String(page.workspaceId), uid);

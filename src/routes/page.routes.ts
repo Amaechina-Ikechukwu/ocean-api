@@ -4,7 +4,7 @@ import { validate } from "../middleware/validate.middleware";
 import { idParam, pageIdParam } from "../validators/common.validators";
 import { createPageSchema, movePageSchema, updatePageSchema } from "../validators/page.validators";
 import { asyncHandler } from "../utils/async-handler";
-import { createPage, getPageForUser, listChildPages, listRootPages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
+import { createPage, getPageForUser, getPageTree, listChildPages, listRootPages, listWorkspacePages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
 
 export const pageRouter = Router();
 
@@ -43,6 +43,20 @@ pageRouter.get("/:pageId/children", validate({ params: pageIdParam }), asyncHand
 export const workspacePagesRouter = Router();
 
 workspacePagesRouter.use(authMiddleware);
+
+workspacePagesRouter.post("/:workspaceId/pages", validate({ params: idParam, body: createPageSchema }), asyncHandler(async (req, res) => {
+  const body = { ...req.body, workspaceId: req.params.workspaceId };
+  res.status(201).json({ data: await createPage(req.user!, body) });
+}));
+
+workspacePagesRouter.get("/:workspaceId/pages/tree", validate({ params: idParam }), asyncHandler(async (req, res) => {
+  res.json({ data: await getPageTree(req.params.workspaceId, req.user!.uid) });
+}));
+
 workspacePagesRouter.get("/:workspaceId/pages/root", validate({ params: idParam }), asyncHandler(async (req, res) => {
   res.json({ data: await listRootPages(req.params.workspaceId, req.user!.uid) });
+}));
+
+workspacePagesRouter.get("/:workspaceId/pages", validate({ params: idParam }), asyncHandler(async (req, res) => {
+  res.json({ data: await listWorkspacePages(req.params.workspaceId, req.user!.uid) });
 }));
