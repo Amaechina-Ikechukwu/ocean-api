@@ -13,6 +13,10 @@ export const blockIdParam = pageIdParam.extend({
   blockId: z.string().min(1).max(160)
 });
 
+export const blockIdOnlyParam = z.object({
+  blockId: z.string().min(1).max(160)
+});
+
 export const workspaceRoleSchema = z.enum(workspaceRoles);
 
 export const optionalNullableUrl = z.string().url().max(2048).nullable().optional();

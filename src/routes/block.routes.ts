@@ -1,15 +1,22 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
-import { blockIdParam, pageIdParam } from "../validators/common.validators";
-import { bulkBlocksSchema, createBlockSchema, reorderBlocksSchema, updateBlockSchema } from "../validators/block.validators";
+import { blockIdOnlyParam, blockIdParam, pageIdParam } from "../validators/common.validators";
+import { bulkBlocksSchema, createBlockSchema, directUpdateBlockSchema, reorderBlocksSchema, updateBlockSchema } from "../validators/block.validators";
 import { asyncHandler } from "../utils/async-handler";
-import { bulkBlocks, createBlock, deleteBlock, listBlocks, reorderBlocks, updateBlock } from "../services/block.service";
+import { bulkBlocks, createBlock, deleteBlock, listBlocks, reorderBlocks, updateBlock, updateBlockById } from "../services/block.service";
 
 export const blockRouter = Router();
 
 blockRouter.use(authMiddleware);
 
+// Direct block routes (blockId only, pageId in body)
+blockRouter.patch("/:blockId", validate({ params: blockIdOnlyParam, body: directUpdateBlockSchema }), asyncHandler(async (req, res) => {
+  const { pageId, ...data } = req.body;
+  res.json({ data: await updateBlockById(req.user!, req.params.blockId, pageId, data) });
+}));
+
+// Page-scoped block routes
 blockRouter.get("/:pageId/blocks", validate({ params: pageIdParam }), asyncHandler(async (req, res) => {
   res.json({ data: await listBlocks(req.params.pageId, req.user!.uid) });
 }));

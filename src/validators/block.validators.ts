@@ -44,6 +44,10 @@ export const updateBlockSchema = z.object({
   order: z.number().finite().optional()
 }).strict();
 
+export const directUpdateBlockSchema = updateBlockSchema.extend({
+  pageId: z.string().min(1).max(160)
+}).strict();
+
 export const reorderBlocksSchema = z.object({
   blocks: z.array(z.object({
     blockId: z.string().min(1).max(160),

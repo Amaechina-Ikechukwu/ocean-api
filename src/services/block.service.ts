@@ -63,6 +63,10 @@ export async function updateBlock(user: AuthenticatedUser, pageId: string, block
   return { id: updated.id, ...updated.data() };
 }
 
+export async function updateBlockById(user: AuthenticatedUser, blockId: string, pageId: string, data: Record<string, unknown>) {
+  return updateBlock(user, pageId, blockId, data);
+}
+
 export async function deleteBlock(user: AuthenticatedUser, pageId: string, blockId: string) {
   await getPageForEdit(pageId, user.uid);
   const ref = firestore.doc(`pages/${pageId}/blocks/${blockId}`);
