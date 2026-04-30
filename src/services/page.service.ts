@@ -169,9 +169,9 @@ export async function listWorkspacePages(workspaceId: string, uid: string) {
 export async function getPageTree(workspaceId: string, uid: string) {
   const pages = await listWorkspacePages(workspaceId, uid);
 
-  type PageNode = (typeof pages)[number] & { children: PageNode[] };
+  type PageNode = { id: string; parentPageId?: string | null; children: PageNode[]; [key: string]: unknown };
   const map = new Map<string, PageNode>();
-  for (const p of pages) map.set(p.id, { ...p, children: [] });
+  for (const p of pages) map.set(String(p.id), { ...p, id: String(p.id), children: [] });
 
   const roots: PageNode[] = [];
   for (const node of map.values()) {

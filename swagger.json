@@ -321,6 +321,79 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/pages": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "List all workspace pages",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "200": {
+            "description": "Workspace pages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Page" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "tags": ["Pages"],
+        "summary": "Create page inside workspace",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWorkspacePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/pages/tree": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Get workspace page tree",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "200": {
+            "description": "Nested page tree",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/PageTreeNode" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/api/pages": {
       "post": {
         "tags": ["Pages"],
@@ -354,6 +427,26 @@
         }
       },
       "patch": {
+        "tags": ["Pages"],
+        "summary": "Update page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "put": {
         "tags": ["Pages"],
         "summary": "Update page",
         "parameters": [{ "$ref": "#/components/parameters/PageId" }],
@@ -1236,7 +1329,9 @@
         "properties": {
           "workspaceId": { "type": "string" },
           "parentPageId": { "type": "string", "nullable": true },
+          "parentId": { "type": "string", "nullable": true, "description": "Alias for parentPageId" },
           "title": { "type": "string", "default": "Untitled", "maxLength": 240 },
+          "name": { "type": "string", "maxLength": 240, "description": "Alias for title" },
           "icon": { "type": "string", "default": "page", "maxLength": 16 },
           "coverImage": { "type": "string", "format": "uri", "nullable": true },
           "visibility": { "type": "string", "enum": ["private", "workspace", "public"], "default": "workspace" },
@@ -1244,15 +1339,44 @@
         },
         "required": ["workspaceId"]
       },
+      "CreateWorkspacePageRequest": {
+        "type": "object",
+        "description": "Create page request for /api/workspaces/{workspaceId}/pages. workspaceId comes from the path.",
+        "properties": {
+          "parentPageId": { "type": "string", "nullable": true },
+          "parentId": { "type": "string", "nullable": true, "description": "Alias for parentPageId" },
+          "title": { "type": "string", "default": "Untitled", "maxLength": 240 },
+          "name": { "type": "string", "maxLength": 240, "description": "Alias for title" },
+          "icon": { "type": "string", "default": "page", "maxLength": 16 },
+          "coverImage": { "type": "string", "format": "uri", "nullable": true },
+          "visibility": { "type": "string", "enum": ["private", "workspace", "public"], "default": "workspace" },
+          "order": { "type": "number" }
+        }
+      },
       "UpdatePageRequest": {
         "type": "object",
         "properties": {
           "title": { "type": "string", "maxLength": 240 },
+          "name": { "type": "string", "maxLength": 240, "description": "Alias for title" },
           "icon": { "type": "string", "maxLength": 16 },
           "coverImage": { "type": "string", "format": "uri", "nullable": true },
           "visibility": { "type": "string", "enum": ["private", "workspace", "public"] },
           "order": { "type": "number" }
         }
+      },
+      "PageTreeNode": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Page" },
+          {
+            "type": "object",
+            "properties": {
+              "children": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/PageTreeNode" }
+              }
+            }
+          }
+        ]
       },
       "MovePageRequest": {
         "type": "object",

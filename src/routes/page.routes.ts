@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
 import { idParam, pageIdParam } from "../validators/common.validators";
-import { createPageSchema, movePageSchema, updatePageSchema } from "../validators/page.validators";
+import { createPageSchema, createWorkspacePageSchema, movePageSchema, updatePageSchema } from "../validators/page.validators";
 import { asyncHandler } from "../utils/async-handler";
 import { createPage, getPageForUser, getPageTree, listChildPages, listRootPages, listWorkspacePages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
 
@@ -19,6 +19,10 @@ pageRouter.get("/:pageId", validate({ params: pageIdParam }), asyncHandler(async
 }));
 
 pageRouter.patch("/:pageId", validate({ params: pageIdParam, body: updatePageSchema }), asyncHandler(async (req, res) => {
+  res.json({ data: await updatePage(req.params.pageId, req.user!.uid, req.body) });
+}));
+
+pageRouter.put("/:pageId", validate({ params: pageIdParam, body: updatePageSchema }), asyncHandler(async (req, res) => {
   res.json({ data: await updatePage(req.params.pageId, req.user!.uid, req.body) });
 }));
 
@@ -44,7 +48,7 @@ export const workspacePagesRouter = Router();
 
 workspacePagesRouter.use(authMiddleware);
 
-workspacePagesRouter.post("/:workspaceId/pages", validate({ params: idParam, body: createPageSchema }), asyncHandler(async (req, res) => {
+workspacePagesRouter.post("/:workspaceId/pages", validate({ params: idParam, body: createWorkspacePageSchema }), asyncHandler(async (req, res) => {
   const body = { ...req.body, workspaceId: req.params.workspaceId };
   res.status(201).json({ data: await createPage(req.user!, body) });
 }));

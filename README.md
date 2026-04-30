@@ -51,3 +51,11 @@ When `LOG_VIEWER_TOKEN` is set, open:
 ```
 
 The log viewer shows recent in-memory logs and supports search, level filtering, sort order, and result limits.
+
+## Vector Embeddings
+
+Gemini Embedding 2 returns 3072 dimensions by default, but Firestore vectors support at most 2048 dimensions. The backend requests a smaller embedding size:
+
+```env
+GEMINI_EMBEDDING_DIMENSIONS=1536
+```

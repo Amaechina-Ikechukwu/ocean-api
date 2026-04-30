@@ -492,6 +492,7 @@ NVIDIA_AI_MODEL=google/gemma-4-31b-it
 NVIDIA_AI_BASE_URL=https://integrate.api.nvidia.com/v1/chat/completions
 GEMINI_API_KEY=
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2
+GEMINI_EMBEDDING_DIMENSIONS=1536
 ```
 
 Never expose these in frontend code.

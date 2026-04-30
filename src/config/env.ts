@@ -10,6 +10,7 @@ const envSchema = z.object({
   NVIDIA_AI_BASE_URL: z.string().url().default("https://integrate.api.nvidia.com/v1/chat/completions"),
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_EMBEDDING_MODEL: z.string().min(1).default("gemini-embedding-2"),
+  GEMINI_EMBEDDING_DIMENSIONS: z.coerce.number().int().positive().max(2048).default(1536),
   PORT: z.coerce.number().int().positive().default(8080),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),

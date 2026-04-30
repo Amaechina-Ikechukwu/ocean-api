@@ -55,6 +55,10 @@ function normalizeEmbedding(response: Awaited<ReturnType<GoogleGenAI["models"]["
     throw new HttpError(502, "Gemini returned an empty embedding");
   }
 
+  if (values.length > 2048) {
+    throw new HttpError(502, `Gemini returned ${values.length} embedding dimensions; Firestore supports at most 2048`);
+  }
+
   return values;
 }
 
@@ -64,7 +68,10 @@ export async function createEmbedding(text: string): Promise<number[]> {
 
   const response = await getGeminiClient().models.embedContent({
     model: env.GEMINI_EMBEDDING_MODEL,
-    contents: trimmed
+    contents: trimmed,
+    config: {
+      outputDimensionality: env.GEMINI_EMBEDDING_DIMENSIONS
+    }
   });
 
   return normalizeEmbedding(response);
