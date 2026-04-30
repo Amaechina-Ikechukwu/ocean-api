@@ -10,6 +10,7 @@ const router = Router();
 router.use("/me", meRouter);
 router.use("/workspaces", workspacePagesRouter);
 router.use("/workspaces", workspaceRouter);
+router.use("/blocks", blockRouter);
 router.use("/pages", blockRouter);
 router.use("/pages", pageRouter);
 router.use("/ai", aiRouter);
