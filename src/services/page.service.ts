@@ -36,6 +36,32 @@ export async function getPageForUser(pageId: string, uid: string) {
   return { id: snapshot.id, ...page };
 }
 
+function blockToText(block: { type?: unknown; content?: unknown }) {
+  const content = block.content as Record<string, unknown> | undefined;
+  if (!content) return "";
+
+  if (typeof content.text === "string") return content.text;
+  if (typeof content.title === "string") return content.title;
+  if (typeof content.caption === "string") return content.caption;
+
+  return "";
+}
+
+export async function getPageContent(pageId: string, uid: string) {
+  const page = await getPageForUser(pageId, uid);
+  const blockSnapshot = await firestore.collection(`pages/${pageId}/blocks`)
+    .where("isDeleted", "==", false)
+    .orderBy("order", "asc")
+    .get();
+
+  const blocks = blockSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as { id: string; content?: unknown; type?: unknown; [key: string]: unknown }));
+  return {
+    page,
+    blocks,
+    plainText: blocks.map(blockToText).filter(Boolean).join("\n")
+  };
+}
+
 export async function createPage(user: AuthenticatedUser, input: {
   workspaceId: string;
   parentPageId?: string | null;

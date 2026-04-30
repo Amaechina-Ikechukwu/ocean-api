@@ -478,6 +478,19 @@
         }
       }
     },
+    "/api/pages/{pageId}/content": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Get page with ordered blocks and plain text",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageContentResponse" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/api/pages/{pageId}/restore": {
       "post": {
         "tags": ["Pages"],
@@ -1026,6 +1039,29 @@
               "type": "object",
               "properties": {
                 "data": { "$ref": "#/components/schemas/Page" }
+              }
+            }
+          }
+        }
+      },
+      "PageContentResponse": {
+        "description": "Page content response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "page": { "$ref": "#/components/schemas/Page" },
+                    "blocks": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Block" }
+                    },
+                    "plainText": { "type": "string" }
+                  }
+                }
               }
             }
           }

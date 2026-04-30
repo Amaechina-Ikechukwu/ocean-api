@@ -3,6 +3,28 @@ import type { AuthenticatedUser } from "../types/auth";
 import { canEdit, canView, getWorkspaceRole } from "./permission.service";
 import { forbidden, notFound } from "../utils/http-error";
 
+const textLikeBlockTypes = new Set([
+  "paragraph",
+  "heading_1",
+  "heading_2",
+  "heading_3",
+  "bulleted_list",
+  "numbered_list",
+  "todo",
+  "toggle",
+  "quote",
+  "callout",
+  "code"
+]);
+
+function normalizeBlockContent(type: string, content: Record<string, unknown>) {
+  if (Object.keys(content).length === 0 && textLikeBlockTypes.has(type)) {
+    return { text: "" };
+  }
+
+  return content;
+}
+
 async function getPageForEdit(pageId: string, uid: string) {
   const page = await firestore.doc(`pages/${pageId}`).get();
   if (!page.exists || page.get("isDeleted")) throw notFound("Page not found");
@@ -36,7 +58,7 @@ export async function createBlock(user: AuthenticatedUser, pageId: string, input
     pageId,
     workspaceId: page.get("workspaceId"),
     type: input.type,
-    content: input.content,
+    content: normalizeBlockContent(input.type, input.content),
     parentBlockId: input.parentBlockId ?? null,
     order: input.order ?? 1000,
     createdBy: user.uid,
@@ -46,7 +68,8 @@ export async function createBlock(user: AuthenticatedUser, pageId: string, input
     isDeleted: false
   };
   await ref.set(block);
-  return { id: ref.id, ...block };
+    const created = await ref.get();
+    return { id: ref.id, ...created.data() };
 }
 
 export async function updateBlock(user: AuthenticatedUser, pageId: string, blockId: string, data: Record<string, unknown>) {
@@ -107,7 +130,7 @@ export async function bulkBlocks(user: AuthenticatedUser, pageId: string, input:
       pageId,
       workspaceId: page.get("workspaceId"),
       type: data.type,
-      content: data.content,
+      content: normalizeBlockContent(data.type, data.content),
       parentBlockId: data.parentBlockId ?? null,
       order: data.order ?? 1000,
       createdBy: user.uid,

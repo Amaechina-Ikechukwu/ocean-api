@@ -4,7 +4,7 @@ import { validate } from "../middleware/validate.middleware";
 import { idParam, pageIdParam } from "../validators/common.validators";
 import { createPageSchema, createWorkspacePageSchema, movePageSchema, updatePageSchema } from "../validators/page.validators";
 import { asyncHandler } from "../utils/async-handler";
-import { createPage, getPageForUser, getPageTree, listChildPages, listRootPages, listWorkspacePages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
+import { createPage, getPageContent, getPageForUser, getPageTree, listChildPages, listRootPages, listWorkspacePages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
 
 export const pageRouter = Router();
 
@@ -16,6 +16,10 @@ pageRouter.post("/", validate({ body: createPageSchema }), asyncHandler(async (r
 
 pageRouter.get("/:pageId", validate({ params: pageIdParam }), asyncHandler(async (req, res) => {
   res.json({ data: await getPageForUser(req.params.pageId, req.user!.uid) });
+}));
+
+pageRouter.get("/:pageId/content", validate({ params: pageIdParam }), asyncHandler(async (req, res) => {
+  res.json({ data: await getPageContent(req.params.pageId, req.user!.uid) });
 }));
 
 pageRouter.patch("/:pageId", validate({ params: pageIdParam, body: updatePageSchema }), asyncHandler(async (req, res) => {
