@@ -1,0 +1,1537 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ocean API",
+    "version": "0.1.0",
+    "description": "REST API for a Notion-like collaborative workspace backend."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development"
+    },
+    {
+      "url": "https://ocean-api-269299350620.europe-west1.run.app",
+      "description": "Cloud Run"
+    }
+  ],
+  "security": [
+    {
+      "firebaseBearer": []
+    }
+  ],
+  "tags": [
+    { "name": "Health" },
+    { "name": "Me" },
+    { "name": "Workspaces" },
+    { "name": "Pages" },
+    { "name": "Blocks" },
+    { "name": "AI" },
+    { "name": "Logs" },
+    { "name": "Not Implemented" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "security": [],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["Me"],
+        "summary": "Get current user profile",
+        "responses": {
+          "200": { "$ref": "#/components/responses/UserResponse" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "tags": ["Me"],
+        "summary": "Update current user profile",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/UserResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/me/sync": {
+      "post": {
+        "tags": ["Me"],
+        "summary": "Create or update current user profile from Firebase Auth",
+        "responses": {
+          "201": { "$ref": "#/components/responses/UserResponse" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces": {
+      "get": {
+        "tags": ["Workspaces"],
+        "summary": "List current user's workspaces",
+        "responses": {
+          "200": {
+            "description": "Workspace list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/UserWorkspace" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "tags": ["Workspaces"],
+        "summary": "Create workspace with owner membership and home page",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWorkspaceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created workspace and home page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "workspace": { "$ref": "#/components/schemas/Workspace" },
+                        "page": { "$ref": "#/components/schemas/Page" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}": {
+      "get": {
+        "tags": ["Workspaces"],
+        "summary": "Get workspace",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/WorkspaceResponse" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "tags": ["Workspaces"],
+        "summary": "Update workspace",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWorkspaceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/WorkspaceResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "tags": ["Workspaces"],
+        "summary": "Soft delete workspace",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/members": {
+      "get": {
+        "tags": ["Workspaces"],
+        "summary": "List workspace members",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "200": {
+            "description": "Member list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WorkspaceMember" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/invites": {
+      "post": {
+        "tags": ["Workspaces"],
+        "summary": "Create workspace invite",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateInviteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invite created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Invite" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/members/{uid}/role": {
+      "patch": {
+        "tags": ["Workspaces"],
+        "summary": "Update member role",
+        "parameters": [
+          { "$ref": "#/components/parameters/WorkspaceId" },
+          { "$ref": "#/components/parameters/Uid" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateMemberRoleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Role updated" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/members/{uid}": {
+      "delete": {
+        "tags": ["Workspaces"],
+        "summary": "Remove workspace member",
+        "parameters": [
+          { "$ref": "#/components/parameters/WorkspaceId" },
+          { "$ref": "#/components/parameters/Uid" }
+        ],
+        "responses": {
+          "204": { "description": "Member removed" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/pages/root": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "List root pages in a workspace",
+        "parameters": [{ "$ref": "#/components/parameters/WorkspaceId" }],
+        "responses": {
+          "200": {
+            "description": "Root pages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Page" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages": {
+      "post": {
+        "tags": ["Pages"],
+        "summary": "Create page",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "Get page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageResponse" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "patch": {
+        "tags": ["Pages"],
+        "summary": "Update page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "tags": ["Pages"],
+        "summary": "Soft delete page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/restore": {
+      "post": {
+        "tags": ["Pages"],
+        "summary": "Restore soft-deleted page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "204": { "description": "Restored" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/move": {
+      "post": {
+        "tags": ["Pages"],
+        "summary": "Move page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MovePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/children": {
+      "get": {
+        "tags": ["Pages"],
+        "summary": "List child pages",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "200": {
+            "description": "Child pages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Page" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/blocks": {
+      "get": {
+        "tags": ["Blocks"],
+        "summary": "List page blocks",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "responses": {
+          "200": {
+            "description": "Blocks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Block" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "tags": ["Blocks"],
+        "summary": "Create block",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateBlockRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "$ref": "#/components/responses/BlockResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/blocks/{blockId}": {
+      "patch": {
+        "tags": ["Blocks"],
+        "summary": "Update block",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageId" },
+          { "$ref": "#/components/parameters/BlockId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateBlockRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/BlockResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "tags": ["Blocks"],
+        "summary": "Soft delete block",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageId" },
+          { "$ref": "#/components/parameters/BlockId" }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/blocks/reorder": {
+      "post": {
+        "tags": ["Blocks"],
+        "summary": "Reorder blocks",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReorderBlocksRequest" }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Reordered" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/pages/{pageId}/blocks/bulk": {
+      "post": {
+        "tags": ["Blocks"],
+        "summary": "Bulk block operations",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BulkBlocksRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/chat": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Chat with workspace AI",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AiChatRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AiChatResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/chat/stream": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Stream AI chat response as Server-Sent Events",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AiChatRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream with delta, usage, done, and error events",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/pages/{pageId}/summarize": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Summarize a page",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SummarizePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/SummarizePageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/pages/{pageId}/generate": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Generate page content preview",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/GeneratePageContentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/GeneratePageContentResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/pages/{pageId}/rewrite": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Rewrite selected text",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RewriteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/RewriteResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/pages/{pageId}/vectorize": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Vectorize page blocks with Gemini embeddings",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VectorizePageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/VectorizePageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/pages/{pageId}/blocks/{blockId}/vectorize": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Vectorize a single block with Gemini embeddings",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageId" },
+          { "$ref": "#/components/parameters/BlockId" }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VectorizeBlockRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/VectorizeBlockResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/ai/embeddings/search": {
+      "post": {
+        "tags": ["AI"],
+        "summary": "Vector search workspace embeddings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VectorSearchRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/VectorSearchResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/ocean-logs": {
+      "get": {
+        "tags": ["Logs"],
+        "security": [],
+        "summary": "HTML log viewer",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML log viewer",
+            "content": {
+              "text/html": {
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "401": { "description": "Invalid log viewer token" },
+          "404": { "description": "Log viewer disabled" }
+        }
+      }
+    },
+    "/ocean-logs/data": {
+      "get": {
+        "tags": ["Logs"],
+        "security": [],
+        "summary": "Recent in-memory logs",
+        "parameters": [
+          { "name": "token", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "level", "in": "query", "required": false, "schema": { "type": "string", "enum": ["error", "warn", "info", "http", "debug"] } },
+          { "name": "q", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "sort", "in": "query", "required": false, "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 5000, "default": 200 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Buffered logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/LogEntry" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid log viewer token" },
+          "404": { "description": "Log viewer disabled" }
+        }
+      }
+    },
+    "/api/databases": { "x-ocean-status": "not_implemented", "get": { "$ref": "#/components/pathItems/NotImplemented" } },
+    "/api/comments": { "x-ocean-status": "not_implemented", "get": { "$ref": "#/components/pathItems/NotImplemented" } },
+    "/api/files": { "x-ocean-status": "not_implemented", "get": { "$ref": "#/components/pathItems/NotImplemented" } },
+    "/api/search": { "x-ocean-status": "not_implemented", "get": { "$ref": "#/components/pathItems/NotImplemented" } }
+  },
+  "components": {
+    "securitySchemes": {
+      "firebaseBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Firebase ID token"
+      }
+    },
+    "parameters": {
+      "WorkspaceId": {
+        "name": "workspaceId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "PageId": {
+        "name": "pageId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "BlockId": {
+        "name": "blockId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "Uid": {
+        "name": "uid",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "pathItems": {
+      "NotImplemented": {
+        "tags": ["Not Implemented"],
+        "summary": "Not implemented",
+        "responses": {
+          "501": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Error response",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "UserResponse": {
+        "description": "User response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          }
+        }
+      },
+      "WorkspaceResponse": {
+        "description": "Workspace response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "$ref": "#/components/schemas/Workspace" }
+              }
+            }
+          }
+        }
+      },
+      "PageResponse": {
+        "description": "Page response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "$ref": "#/components/schemas/Page" }
+              }
+            }
+          }
+        }
+      },
+      "BlockResponse": {
+        "description": "Block response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "$ref": "#/components/schemas/Block" }
+              }
+            }
+          }
+        }
+      },
+      "AiChatResponse": {
+        "description": "AI chat response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "$ref": "#/components/schemas/AiAssistantMessage" },
+                    "usage": { "$ref": "#/components/schemas/AiUsage" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "SummarizePageResponse": {
+        "description": "Page summary",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "summary": { "type": "string" },
+                    "usage": { "$ref": "#/components/schemas/AiUsage" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "GeneratePageContentResponse": {
+        "description": "Generated page content preview",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "previewText": { "type": "string" },
+                    "blocks": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/BlockDraft" }
+                    },
+                    "usage": { "$ref": "#/components/schemas/AiUsage" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RewriteResponse": {
+        "description": "Rewritten text",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "text": { "type": "string" },
+                    "usage": { "$ref": "#/components/schemas/AiUsage" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "VectorizePageResponse": {
+        "description": "Page vectorization result",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "pageId": { "type": "string" },
+                    "indexed": { "type": "integer" },
+                    "skipped": { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/VectorizeBlockResult" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "VectorizeBlockResponse": {
+        "description": "Block vectorization result",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": { "$ref": "#/components/schemas/VectorizeBlockResult" }
+              }
+            }
+          }
+        }
+      },
+      "VectorSearchResponse": {
+        "description": "Vector search results",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/VectorSearchResult" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" },
+              "details": {}
+            },
+            "required": ["message"]
+          }
+        },
+        "required": ["error"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "uid": { "type": "string" },
+          "email": { "type": "string", "nullable": true },
+          "displayName": { "type": "string", "nullable": true },
+          "photoURL": { "type": "string", "nullable": true },
+          "createdAt": { "$ref": "#/components/schemas/Timestamp" },
+          "updatedAt": { "$ref": "#/components/schemas/Timestamp" },
+          "lastSeenAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "photoURL": { "type": "string", "format": "uri", "nullable": true }
+        }
+      },
+      "Workspace": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "icon": { "type": "string" },
+          "coverImage": { "type": "string", "nullable": true },
+          "ownerId": { "type": "string" },
+          "isDeleted": { "type": "boolean" },
+          "createdAt": { "$ref": "#/components/schemas/Timestamp" },
+          "updatedAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "UserWorkspace": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "name": { "type": "string" },
+          "icon": { "type": "string" },
+          "role": { "$ref": "#/components/schemas/WorkspaceRole" },
+          "joinedAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "WorkspaceMember": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "uid": { "type": "string" },
+          "email": { "type": "string", "nullable": true },
+          "displayName": { "type": "string", "nullable": true },
+          "photoURL": { "type": "string", "nullable": true },
+          "role": { "$ref": "#/components/schemas/WorkspaceRole" },
+          "status": { "type": "string", "enum": ["active", "invited"] },
+          "joinedAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "WorkspaceRole": {
+        "type": "string",
+        "enum": ["owner", "admin", "editor", "commenter", "viewer"]
+      },
+      "CreateWorkspaceRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "icon": { "type": "string", "default": "workspace", "maxLength": 16 },
+          "coverImage": { "type": "string", "format": "uri", "nullable": true }
+        },
+        "required": ["name"]
+      },
+      "UpdateWorkspaceRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "icon": { "type": "string", "maxLength": 16 },
+          "coverImage": { "type": "string", "format": "uri", "nullable": true }
+        }
+      },
+      "CreateInviteRequest": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "editor", "commenter", "viewer"]
+          }
+        },
+        "required": ["email", "role"]
+      },
+      "UpdateMemberRoleRequest": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["admin", "editor", "commenter", "viewer"]
+          }
+        },
+        "required": ["role"]
+      },
+      "Invite": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "$ref": "#/components/schemas/WorkspaceRole" },
+          "status": { "type": "string", "example": "pending" },
+          "invitedBy": { "type": "string" },
+          "createdAt": { "$ref": "#/components/schemas/Timestamp" },
+          "expiresAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "Page": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "parentPageId": { "type": "string", "nullable": true },
+          "title": { "type": "string" },
+          "icon": { "type": "string" },
+          "coverImage": { "type": "string", "nullable": true },
+          "createdBy": { "type": "string" },
+          "updatedBy": { "type": "string" },
+          "visibility": { "type": "string", "enum": ["private", "workspace", "public"] },
+          "order": { "type": "number" },
+          "isDeleted": { "type": "boolean" },
+          "deletedAt": { "$ref": "#/components/schemas/TimestampNullable" },
+          "createdAt": { "$ref": "#/components/schemas/Timestamp" },
+          "updatedAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "CreatePageRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "parentPageId": { "type": "string", "nullable": true },
+          "title": { "type": "string", "default": "Untitled", "maxLength": 240 },
+          "icon": { "type": "string", "default": "page", "maxLength": 16 },
+          "coverImage": { "type": "string", "format": "uri", "nullable": true },
+          "visibility": { "type": "string", "enum": ["private", "workspace", "public"], "default": "workspace" },
+          "order": { "type": "number" }
+        },
+        "required": ["workspaceId"]
+      },
+      "UpdatePageRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "maxLength": 240 },
+          "icon": { "type": "string", "maxLength": 16 },
+          "coverImage": { "type": "string", "format": "uri", "nullable": true },
+          "visibility": { "type": "string", "enum": ["private", "workspace", "public"] },
+          "order": { "type": "number" }
+        }
+      },
+      "MovePageRequest": {
+        "type": "object",
+        "properties": {
+          "parentPageId": { "type": "string", "nullable": true },
+          "order": { "type": "number" }
+        },
+        "required": ["parentPageId"]
+      },
+      "Block": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "pageId": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/BlockType" },
+          "content": { "type": "object", "additionalProperties": true },
+          "parentBlockId": { "type": "string", "nullable": true },
+          "order": { "type": "number" },
+          "createdBy": { "type": "string" },
+          "updatedBy": { "type": "string" },
+          "isDeleted": { "type": "boolean" },
+          "createdAt": { "$ref": "#/components/schemas/Timestamp" },
+          "updatedAt": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "BlockDraft": {
+        "type": "object",
+        "properties": {
+          "type": { "$ref": "#/components/schemas/BlockType" },
+          "content": { "type": "object", "additionalProperties": true }
+        },
+        "required": ["type", "content"]
+      },
+      "CreateBlockRequest": {
+        "type": "object",
+        "properties": {
+          "type": { "$ref": "#/components/schemas/BlockType" },
+          "content": { "type": "object", "additionalProperties": true, "default": {} },
+          "parentBlockId": { "type": "string", "nullable": true },
+          "order": { "type": "number" }
+        }
+      },
+      "UpdateBlockRequest": {
+        "type": "object",
+        "properties": {
+          "type": { "$ref": "#/components/schemas/BlockType" },
+          "content": { "type": "object", "additionalProperties": true },
+          "parentBlockId": { "type": "string", "nullable": true },
+          "order": { "type": "number" }
+        }
+      },
+      "ReorderBlocksRequest": {
+        "type": "object",
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 500,
+            "items": {
+              "type": "object",
+              "properties": {
+                "blockId": { "type": "string" },
+                "order": { "type": "number" }
+              },
+              "required": ["blockId", "order"]
+            }
+          }
+        },
+        "required": ["blocks"]
+      },
+      "BulkBlocksRequest": {
+        "type": "object",
+        "properties": {
+          "create": {
+            "type": "array",
+            "maxItems": 100,
+            "items": { "$ref": "#/components/schemas/CreateBlockRequest" }
+          },
+          "update": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "properties": {
+                "blockId": { "type": "string" },
+                "data": { "$ref": "#/components/schemas/UpdateBlockRequest" }
+              },
+              "required": ["blockId", "data"]
+            }
+          },
+          "delete": {
+            "type": "array",
+            "maxItems": 100,
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "BlockType": {
+        "type": "string",
+        "enum": [
+          "paragraph",
+          "heading_1",
+          "heading_2",
+          "heading_3",
+          "bulleted_list",
+          "numbered_list",
+          "todo",
+          "toggle",
+          "quote",
+          "callout",
+          "divider",
+          "code",
+          "image",
+          "video",
+          "audio",
+          "file",
+          "bookmark",
+          "equation",
+          "table",
+          "columns",
+          "database_view",
+          "embed",
+          "breadcrumb",
+          "table_of_contents",
+          "synced_block"
+        ]
+      },
+      "AiMessage": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "content": { "type": "string", "minLength": 1, "maxLength": 20000 }
+        },
+        "required": ["role", "content"]
+      },
+      "AiAssistantMessage": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "enum": ["assistant"] },
+          "content": { "type": "string" }
+        },
+        "required": ["role", "content"]
+      },
+      "AiUsage": {
+        "type": "object",
+        "properties": {
+          "inputTokens": { "type": "integer" },
+          "outputTokens": { "type": "integer" },
+          "totalTokens": { "type": "integer" }
+        }
+      },
+      "AiChatRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "pageId": { "type": "string" },
+          "messages": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": { "$ref": "#/components/schemas/AiMessage" }
+          },
+          "selectedText": { "type": "string", "maxLength": 20000 },
+          "mode": { "type": "string", "enum": ["ask", "explain", "brainstorm", "draft"], "default": "ask" }
+        },
+        "required": ["workspaceId", "messages"]
+      },
+      "SummarizePageRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "style": { "type": "string", "enum": ["brief", "detailed", "action_items"], "default": "brief" }
+        },
+        "required": ["workspaceId"]
+      },
+      "GeneratePageContentRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "prompt": { "type": "string", "minLength": 1, "maxLength": 8000 },
+          "insertMode": { "type": "string", "enum": ["append", "replace_selection", "after_block"] },
+          "afterBlockId": { "type": "string" },
+          "selectedText": { "type": "string", "maxLength": 20000 }
+        },
+        "required": ["workspaceId", "prompt", "insertMode"]
+      },
+      "RewriteRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "selectedText": { "type": "string", "minLength": 1, "maxLength": 20000 },
+          "instruction": {
+            "type": "string",
+            "enum": ["improve", "shorten", "expand", "fix_grammar", "make_professional", "make_casual", "custom"]
+          },
+          "customInstruction": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        },
+        "required": ["workspaceId", "selectedText", "instruction"]
+      },
+      "VectorizePageRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 500, "default": 200 }
+        },
+        "required": ["workspaceId"]
+      },
+      "VectorizeBlockRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" }
+        }
+      },
+      "VectorizeBlockResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "indexed": { "type": "boolean", "enum": [true] },
+              "embeddingId": { "type": "string" },
+              "dimensions": { "type": "integer" }
+            },
+            "required": ["indexed", "embeddingId", "dimensions"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "indexed": { "type": "boolean", "enum": [false] },
+              "reason": { "type": "string", "enum": ["empty_text"] }
+            },
+            "required": ["indexed", "reason"]
+          }
+        ]
+      },
+      "VectorSearchRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "query": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 25, "default": 8 }
+        },
+        "required": ["workspaceId", "query"]
+      },
+      "VectorSearchResult": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "pageId": { "type": "string" },
+          "blockId": { "type": "string" },
+          "blockType": { "type": "string" },
+          "text": { "type": "string" },
+          "distance": { "type": "number" }
+        }
+      },
+      "LogEntry": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "level": { "type": "string" },
+          "message": { "type": "string" },
+          "meta": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "Timestamp": {
+        "oneOf": [
+          { "type": "string", "format": "date-time" },
+          { "type": "object", "additionalProperties": true }
+        ]
+      },
+      "TimestampNullable": {
+        "nullable": true,
+        "oneOf": [
+          { "type": "string", "format": "date-time" },
+          { "type": "object", "additionalProperties": true }
+        ]
+      }
+    }
+  }
+}
