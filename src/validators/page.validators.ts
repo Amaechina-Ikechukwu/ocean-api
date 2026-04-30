@@ -8,8 +8,7 @@ const createPageRawSchema = z.object({
   parentPageId: z.string().min(1).max(160).nullable().optional(),
   parentId: z.string().min(1).max(160).nullable().optional(),
   title: pageTitleSchema.optional(),
-  name: pageTitleSchema.optional(),
-  icon: z.string().trim().min(1).max(16).default("page"),
+  name: pageTitleSchema.optional(),  content: z.any().optional(),  icon: z.string().trim().min(1).max(16).default("page"),
   coverImage: optionalNullableUrl,
   visibility: z.enum(["private", "workspace", "public"]).default("workspace"),
   order: z.number().finite().optional()
@@ -30,6 +29,7 @@ export const createWorkspacePageSchema = createPageRawSchema.extend({
 export const updatePageSchema = z.object({
   title: pageTitleSchema.optional(),
   name: pageTitleSchema.optional(),
+  content: z.any().optional(),
   icon: z.string().trim().min(1).max(16).optional(),
   coverImage: optionalNullableUrl,
   visibility: z.enum(["private", "workspace", "public"]).optional(),

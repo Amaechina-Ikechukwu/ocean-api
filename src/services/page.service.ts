@@ -41,6 +41,7 @@ export async function createPage(user: AuthenticatedUser, input: {
   parentPageId?: string | null;
   title: string;
   icon: string;
+  content?: any;
   coverImage?: string | null;
   visibility: "private" | "workspace" | "public";
   order?: number;
@@ -62,6 +63,7 @@ export async function createPage(user: AuthenticatedUser, input: {
     parentPageId: input.parentPageId ?? null,
     title: input.title,
     icon: input.icon,
+    content: input.content ?? null,
     coverImage: input.coverImage ?? null,
     createdBy: user.uid,
     updatedBy: user.uid,
