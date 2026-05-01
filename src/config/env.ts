@@ -17,7 +17,8 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   LOG_LEVEL: z.enum(["error", "warn", "info", "http", "debug"]).default("info"),
   LOG_BUFFER_SIZE: z.coerce.number().int().positive().max(5000).default(500),
-  LOG_VIEWER_TOKEN: z.string().min(24).optional()
+  LOG_VIEWER_TOKEN: z.string().min(24).optional(),
+  APP_VERSION: z.string().min(1).default("local")
 });
 
 export const env = envSchema.parse(process.env);

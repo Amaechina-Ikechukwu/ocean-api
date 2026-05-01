@@ -32,7 +32,13 @@ app.use(rateLimit({
 }));
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    version: env.APP_VERSION,
+    routes: {
+      pageTitle: "/api/pages/:pageId/title"
+    }
+  });
 });
 
 // Compatibility for clients that accidentally combine an API base URL ending

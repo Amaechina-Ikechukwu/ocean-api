@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
 import { idParam, pageIdParam } from "../validators/common.validators";
-import { createPageSchema, createWorkspacePageSchema, movePageSchema, updatePageSchema } from "../validators/page.validators";
+import { createPageSchema, createWorkspacePageSchema, movePageSchema, updatePageSchema, updatePageTitleSchema } from "../validators/page.validators";
 import { asyncHandler } from "../utils/async-handler";
 import { createPage, getPageContent, getPageForUser, getPageTree, listChildPages, listRootPages, listWorkspacePages, movePage, restorePage, softDeletePage, updatePage } from "../services/page.service";
 
@@ -27,6 +27,10 @@ pageRouter.patch("/:pageId", validate({ params: pageIdParam, body: updatePageSch
 }));
 
 pageRouter.put("/:pageId", validate({ params: pageIdParam, body: updatePageSchema }), asyncHandler(async (req, res) => {
+  res.json({ data: await updatePage(req.params.pageId, req.user!.uid, req.body) });
+}));
+
+pageRouter.patch("/:pageId/title", validate({ params: pageIdParam, body: updatePageTitleSchema }), asyncHandler(async (req, res) => {
   res.json({ data: await updatePage(req.params.pageId, req.user!.uid, req.body) });
 }));
 

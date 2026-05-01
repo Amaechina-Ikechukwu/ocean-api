@@ -8,7 +8,9 @@ const createPageRawSchema = z.object({
   parentPageId: z.string().min(1).max(160).nullable().optional(),
   parentId: z.string().min(1).max(160).nullable().optional(),
   title: pageTitleSchema.optional(),
-  name: pageTitleSchema.optional(),  content: z.any().optional(),  icon: z.string().trim().min(1).max(16).default("page"),
+  name: pageTitleSchema.optional(),
+  content: z.any().optional(),
+  icon: z.string().trim().min(1).max(16).default("page"),
   coverImage: optionalNullableUrl,
   visibility: z.enum(["private", "workspace", "public"]).default("workspace"),
   order: z.number().finite().optional()
@@ -41,6 +43,15 @@ export const updatePageSchema = z.object({
     ...(title === undefined ? {} : { title })
   };
 });
+
+export const updatePageTitleSchema = z.object({
+  title: pageTitleSchema.optional(),
+  name: pageTitleSchema.optional()
+}).refine((value) => value.title || value.name, {
+  message: "title or name is required"
+}).transform((value) => ({
+  title: value.title ?? value.name
+}));
 
 export const movePageSchema = z.object({
   workspaceId: z.string().min(1).max(160).optional(),

@@ -491,6 +491,29 @@
         }
       }
     },
+    "/api/pages/{pageId}/title": {
+      "patch": {
+        "tags": ["Pages"],
+        "summary": "Update page title",
+        "description": "Dedicated title update route. Accepts either title or name.",
+        "parameters": [{ "$ref": "#/components/parameters/PageId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdatePageTitleRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/PageResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/api/pages/{pageId}/restore": {
       "post": {
         "tags": ["Pages"],
@@ -1398,6 +1421,14 @@
           "coverImage": { "type": "string", "format": "uri", "nullable": true },
           "visibility": { "type": "string", "enum": ["private", "workspace", "public"] },
           "order": { "type": "number" }
+        }
+      },
+      "UpdatePageTitleRequest": {
+        "type": "object",
+        "description": "Send either title or name.",
+        "properties": {
+          "title": { "type": "string", "maxLength": 240 },
+          "name": { "type": "string", "maxLength": 240, "description": "Alias for title" }
         }
       },
       "PageTreeNode": {
